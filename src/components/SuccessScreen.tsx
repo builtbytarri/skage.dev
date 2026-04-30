@@ -8,7 +8,7 @@ export default function SuccessScreen() {
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="flex flex-col items-center justify-center text-center px-6 py-16 min-h-[60vh]"
+      className="flex flex-col items-start text-left py-8 max-w-[440px]"
     >
       <div className="w-16 h-16 rounded-full bg-[#F26522] flex items-center justify-center mb-6">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -17,7 +17,7 @@ export default function SuccessScreen() {
       </div>
 
       <h2 className="text-2xl font-bold text-gray-900 mb-3">Application Received</h2>
-      <p className="text-gray-500 text-sm leading-relaxed max-w-xs mb-8">
+      <p className="text-gray-500 text-sm leading-relaxed mb-8">
         We're reviewing your application.<br />
         Qualified applicants will be added to the onboarding group.
       </p>

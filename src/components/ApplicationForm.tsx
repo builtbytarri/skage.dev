@@ -3,7 +3,6 @@ import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AnimatePresence, motion } from 'framer-motion'
-import SuccessScreen from './SuccessScreen'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Enter your full name'),
@@ -24,26 +23,36 @@ type FormData = z.infer<typeof schema>
 
 const STEPS = ['Basic Info', 'Experience', 'Availability', 'Intent']
 
+const STEP_FIELDS: (keyof FormData)[][] = [
+  ['fullName', 'phone', 'city'],
+  ['hasSalesExp', 'callComfort'],
+  ['hoursPerDay', 'hasStableInternet'],
+  ['whyInterested', 'incomeGoal', 'commissionOk'],
+]
+
 const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 40 : -40, opacity: 0 }),
+  enter: (dir: number) => ({ x: dir > 0 ? 32 : -32, opacity: 0 }),
   center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? -40 : 40, opacity: 0 }),
+  exit: (dir: number) => ({ x: dir > 0 ? -32 : 32, opacity: 0 }),
 }
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null
-  return <p className="text-red-500 text-xs mt-1">{message}</p>
+  return <p className="text-red-500 text-xs mt-1.5">{message}</p>
 }
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-sm font-medium text-gray-800 mb-2">
-      {children}{required && <span className="text-[#F26522] ml-0.5">*</span>}
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      {children}
+      {required && <span className="text-[#F26522] ml-0.5">*</span>}
     </label>
   )
 }
 
-const inputClass = "w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F26522]/30 focus:border-[#F26522] transition-all duration-150 bg-white"
+// font-size set to 16px via global CSS to prevent iOS zoom
+const inputClass =
+  'w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F26522]/25 focus:border-[#F26522] transition-all duration-150 bg-white leading-normal'
 
 function RadioGroup({
   options,
@@ -89,7 +98,10 @@ function Step1({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
         <FieldError message={errors.phone?.message} />
       </div>
       <div>
-        <Label>Email Address <span className="text-gray-400 font-normal">(optional)</span></Label>
+        <Label>
+          Email Address{' '}
+          <span className="text-gray-400 font-normal">(optional)</span>
+        </Label>
         <input {...register('email')} placeholder="you@example.com" type="email" className={inputClass} />
         <FieldError message={errors.email?.message} />
       </div>
@@ -116,6 +128,7 @@ function Step2({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
         />
         <FieldError message={errors.hasSalesExp?.message} />
       </div>
+
       {hasSalesExp === 'yes' && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -125,12 +138,13 @@ function Step2({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
           <Label>Briefly describe your experience</Label>
           <textarea
             {...register('salesExpDetail')}
-            placeholder="e.g. Sold mobile data plans to friends and small shops for 6 months..."
+            placeholder="e.g. Sold mobile data plans to shops for 6 months..."
             rows={3}
             className={`${inputClass} resize-none`}
           />
         </motion.div>
       )}
+
       <div>
         <Label required>Are you comfortable talking to business owners on calls?</Label>
         <RadioGroup
@@ -192,13 +206,15 @@ function Step4({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
           maxLength={150}
           className={`${inputClass} resize-none`}
         />
-        <div className="flex justify-between items-start mt-1">
+        <div className="flex justify-between items-start mt-1.5">
           <FieldError message={errors.whyInterested?.message} />
-          <span className="text-xs text-gray-400 ml-auto">{(watch('whyInterested') || '').length}/150</span>
+          <span className="text-xs text-gray-400 ml-auto">
+            {(watch('whyInterested') || '').length}/150
+          </span>
         </div>
       </div>
       <div>
-        <Label required>What's your income goal for the next 30 days?</Label>
+        <Label required>Income goal for the next 30 days?</Label>
         <div className="flex flex-wrap gap-2 mb-2">
           {INCOME_OPTIONS.map((opt) => (
             <button
@@ -225,7 +241,10 @@ function Step4({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
       <div>
         <Label required>This role is commission-based. Are you okay earning based on performance?</Label>
         <RadioGroup
-          options={[{ label: 'Yes, I understand', value: 'yes' }, { label: 'No', value: 'no' }]}
+          options={[
+            { label: 'Yes, I understand', value: 'yes' },
+            { label: 'No', value: 'no' },
+          ]}
           value={watch('commissionOk')}
           onChange={(v) => setValue('commissionOk', v as 'yes' | 'no', { shouldValidate: true })}
         />
@@ -235,17 +254,13 @@ function Step4({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
   )
 }
 
-const STEP_FIELDS: (keyof FormData)[][] = [
-  ['fullName', 'phone', 'city'],
-  ['hasSalesExp', 'callComfort'],
-  ['hoursPerDay', 'hasStableInternet'],
-  ['whyInterested', 'incomeGoal', 'commissionOk'],
-]
+interface Props {
+  onSubmitted: () => void
+}
 
-export default function ApplicationForm() {
+export default function ApplicationForm({ onSubmitted }: Props) {
   const [step, setStep] = useState(0)
   const [dir, setDir] = useState(1)
-  const [submitted, setSubmitted] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -273,35 +288,30 @@ export default function ApplicationForm() {
     setStep((s) => s - 1)
   }
 
-  const onSubmit = form.handleSubmit(async (data) => {
-    console.log('Form submitted:', data)
-    setSubmitted(true)
+  const onSubmit = form.handleSubmit(() => {
+    onSubmitted()
   })
 
-  if (submitted) return <SuccessScreen />
-
   return (
-    <div className="w-full max-w-[560px] mx-auto px-4 py-10">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-9 h-9 bg-[#F26522] rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
-            <path d="M1 7h16M9 1l8 6-8 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <div>
-          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">skage.dev</p>
-          <h1 className="text-base font-bold text-gray-900 leading-tight">Sales Rep Application</h1>
-        </div>
+    <div className="w-full max-w-[440px]">
+      {/* Role header */}
+      <div className="mb-8">
+        <p className="text-xs text-[#F26522] font-semibold uppercase tracking-widest mb-1.5">
+          Now Hiring
+        </p>
+        <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+          Sales Representative
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">Remote · Commission-based · Nigeria</p>
       </div>
 
       {/* Progress */}
-      <div className="mb-8">
+      <div className="mb-7">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs font-medium text-gray-500">{STEPS[step]}</span>
           <span className="text-xs text-gray-400">Step {step + 1} of {STEPS.length}</span>
         </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-[#F26522] rounded-full"
             animate={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
@@ -310,8 +320,8 @@ export default function ApplicationForm() {
         </div>
       </div>
 
-      {/* Form card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      {/* Step content */}
+      <div className="overflow-hidden mb-6">
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={step}
@@ -320,7 +330,7 @@ export default function ApplicationForm() {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
           >
             <FormProvider {...form}>
               {step === 0 && <Step1 form={form} />}
@@ -333,14 +343,17 @@ export default function ApplicationForm() {
       </div>
 
       {/* Navigation */}
-      <div className="flex gap-3 mt-5">
+      <div className="flex gap-3">
         {step > 0 && (
           <button
             type="button"
             onClick={back}
-            className="flex-1 py-3.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 px-5 py-3.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            Back
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Go back
           </button>
         )}
         {isLast ? (
@@ -349,7 +362,7 @@ export default function ApplicationForm() {
             onClick={onSubmit}
             className="flex-1 py-3.5 rounded-xl bg-[#F26522] hover:bg-[#D95A1A] text-white text-sm font-semibold transition-colors duration-200"
           >
-            Submit Application
+            Submit application
           </button>
         ) : (
           <button
@@ -362,8 +375,8 @@ export default function ApplicationForm() {
         )}
       </div>
 
-      <p className="text-xs text-center text-gray-400 mt-5">
-        Takes less than 2 minutes · Commission-based role
+      <p className="text-xs text-gray-400 mt-5">
+        Takes less than 2 minutes to complete.
       </p>
     </div>
   )
