@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { normalizeState } from '../lib/nigerianStates'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -31,7 +32,19 @@ const HOURS_LABELS: Record<string, string> = { '1-2': '1–2 hrs', '2-4': '2–4
 
 function countBy<T>(arr: T[], key: keyof T): { name: string; value: number }[] {
   const map: Record<string, number> = {}
-  arr.forEach((a) => { const k = String(a[key]); map[k] = (map[k] || 0) + 1 })
+  arr.forEach((a) => {
+    const k = String(a[key]).trim()
+    map[k] = (map[k] || 0) + 1
+  })
+  return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+}
+
+function countByCity(arr: Applicant[]): { name: string; value: number }[] {
+  const map: Record<string, number> = {}
+  arr.forEach((a) => {
+    const normalized = normalizeState(a.city)
+    map[normalized] = (map[normalized] || 0) + 1
+  })
   return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
 }
 
@@ -158,7 +171,7 @@ export default function AdminAnswers() {
     fill: COMFORT_COLORS[d.name] ?? ORANGE,
   }))
   const hoursData = countBy(data, 'hours_per_day').map((d) => ({ ...d, name: HOURS_LABELS[d.name] ?? d.name }))
-  const cityData = countBy(data, 'city').slice(0, 7)
+  const cityData = countByCity(data).slice(0, 7)
   const incomeData = countBy(data, 'income_goal').slice(0, 6)
 
   const filtered = data.filter((a) =>

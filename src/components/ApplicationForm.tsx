@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
+import { STATE_OPTIONS } from '../lib/nigerianStates'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Enter your full name'),
@@ -107,8 +108,13 @@ function Step1({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
         <FieldError message={errors.email?.message} />
       </div>
       <div>
-        <Label required>City</Label>
-        <input {...register('city')} placeholder="Lagos" className={inputClass} />
+        <Label required>State</Label>
+        <select {...register('city')} className={`${inputClass} cursor-pointer`} defaultValue="">
+          <option value="" disabled>Select your state…</option>
+          {STATE_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
         <FieldError message={errors.city?.message} />
       </div>
     </div>
