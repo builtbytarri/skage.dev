@@ -95,7 +95,7 @@ function Step1({ form }: { form: ReturnType<typeof useForm<FormData>> }) {
       </div>
       <div>
         <Label required>WhatsApp Number</Label>
-        <input {...register('phone')} placeholder="+234 800 000 0000" type="tel" className={inputClass} />
+        <input {...register('phone')} placeholder="0800 000 0000" type="tel" className={inputClass} />
         <FieldError message={errors.phone?.message} />
       </div>
       <div>
