@@ -41,7 +41,7 @@ const pct = (n: number, total: number) => total ? `${Math.round((n / total) * 10
 function Sidebar() {
   return (
     <aside className="hidden lg:flex flex-col w-20 bg-white border-r border-gray-100 min-h-screen flex-shrink-0 items-center py-6">
-      <img src="/logo.png" alt="Skage.dev" className="w-10 h-10 rounded-xl object-contain" />
+      <img src="/icon.png" alt="Skage.dev" className="w-10 h-10 rounded-xl object-contain" />
     </aside>
   )
 }
