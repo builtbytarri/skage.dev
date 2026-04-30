@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 
-const WHATSAPP_LINK = 'https://chat.whatsapp.com/your-group-link-here'
+const WHATSAPP_LINK = 'https://chat.whatsapp.com/JnwcgFWSIbuGudIhD49j1R?mode=gi_t'
 
 export default function SuccessScreen() {
   return (
