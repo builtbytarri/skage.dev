@@ -3,6 +3,7 @@ import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AnimatePresence, motion } from 'framer-motion'
+import { supabase } from '../lib/supabase'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Enter your full name'),
@@ -261,6 +262,8 @@ interface Props {
 export default function ApplicationForm({ onSubmitted }: Props) {
   const [step, setStep] = useState(0)
   const [dir, setDir] = useState(1)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -288,7 +291,28 @@ export default function ApplicationForm({ onSubmitted }: Props) {
     setStep((s) => s - 1)
   }
 
-  const onSubmit = form.handleSubmit(() => {
+  const onSubmit = form.handleSubmit(async (data) => {
+    setSubmitting(true)
+    setSubmitError(null)
+    const { error } = await supabase.from('applicants').insert({
+      full_name: data.fullName,
+      phone: data.phone,
+      email: data.email || null,
+      city: data.city,
+      has_sales_exp: data.hasSalesExp === 'yes',
+      sales_exp_detail: data.salesExpDetail || null,
+      call_comfort: data.callComfort,
+      hours_per_day: data.hoursPerDay,
+      has_stable_internet: data.hasStableInternet === 'yes',
+      why_interested: data.whyInterested,
+      income_goal: data.incomeGoal,
+      commission_ok: data.commissionOk === 'yes',
+    })
+    setSubmitting(false)
+    if (error) {
+      setSubmitError('Something went wrong. Please try again.')
+      return
+    }
     onSubmitted()
   })
 
@@ -348,7 +372,8 @@ export default function ApplicationForm({ onSubmitted }: Props) {
           <button
             type="button"
             onClick={back}
-            className="flex items-center gap-1.5 px-5 py-3.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            disabled={submitting}
+            className="flex items-center gap-1.5 px-5 py-3.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -360,9 +385,17 @@ export default function ApplicationForm({ onSubmitted }: Props) {
           <button
             type="button"
             onClick={onSubmit}
-            className="flex-1 py-3.5 rounded-xl bg-[#F26522] hover:bg-[#D95A1A] text-white text-sm font-semibold transition-colors duration-200"
+            disabled={submitting}
+            className="flex-1 py-3.5 rounded-xl bg-[#F26522] hover:bg-[#D95A1A] disabled:opacity-70 text-white text-sm font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
           >
-            Submit application
+            {submitting ? (
+              <>
+                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+                Submitting...
+              </>
+            ) : 'Submit application'}
           </button>
         ) : (
           <button
@@ -375,7 +408,11 @@ export default function ApplicationForm({ onSubmitted }: Props) {
         )}
       </div>
 
-      <p className="text-xs text-gray-400 mt-5">
+      {submitError && (
+        <p className="text-red-500 text-xs mt-3 text-center">{submitError}</p>
+      )}
+
+      <p className="text-xs text-gray-400 mt-4">
         Takes less than 2 minutes to complete.
       </p>
     </div>
