@@ -9,8 +9,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row">
-      {/* Left — Form panel (55%) */}
-      <div className="flex-1 lg:flex-none lg:w-[55%] flex flex-col bg-white overflow-y-auto">
+      {/* Left — Form panel (40%) */}
+      <div className="flex-1 lg:flex-none lg:w-[40%] flex flex-col bg-white overflow-y-auto">
         {/* Top bar */}
         <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
           <img src="/logo.png" alt="Skage.dev" className="h-8 w-auto object-contain" />
@@ -27,8 +27,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Right — Image panel (45%) */}
-      <div className="hidden lg:block lg:w-[45%] relative overflow-hidden">
+      {/* Right — Image panel (60%) */}
+      <div className="hidden lg:block lg:w-[60%] relative overflow-hidden">
         <img
           src={IMAGE}
           alt=""
