@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
 } from 'recharts'
 
 interface Applicant {
@@ -85,7 +85,7 @@ function DonutChart({ yes, no, yesLabel, noLabel }: { yes: number; no: number; y
           <Pie data={data} dataKey="value" cx="50%" cy="50%" innerRadius={52} outerRadius={72} paddingAngle={3} startAngle={90} endAngle={-270}>
             {data.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} strokeWidth={0} />)}
           </Pie>
-          <Tooltip formatter={(v: number) => [`${v} (${pct(v, total)})`, '']} />
+          <Tooltip formatter={(v) => [`${v} (${pct(Number(v), total)})`, '']} />
         </PieChart>
       </ResponsiveContainer>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
