@@ -22,6 +22,7 @@ interface Applicant {
   income_goal: string
   commission_ok: boolean
   reviewed: boolean
+  score: number | null
 }
 
 const ORANGE = '#F26522'
@@ -150,6 +151,28 @@ export default function AdminAnswers() {
   const [search, setSearch] = useState('')
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'reviewed'>('all')
   const [toggling, setToggling] = useState<string | null>(null)
+  const [pendingScores, setPendingScores] = useState<Record<string, string>>({})
+  const [savingScore, setSavingScore] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'newest' | 'score_high' | 'score_low' | 'unscored'>('newest')
+
+  const saveScore = async (id: string) => {
+    const raw = pendingScores[id]
+    if (raw === undefined || raw === '') return
+    const val = Math.min(100, Math.max(0, parseInt(raw, 10)))
+    if (isNaN(val)) return
+    setSavingScore(id)
+    setData((prev) => prev.map((a) => a.id === id ? { ...a, score: val, reviewed: true } : a))
+    setPendingScores((p) => { const n = { ...p }; delete n[id]; return n })
+    const { error } = await supabase
+      .from('applicants')
+      .update({ score: val, reviewed: true })
+      .eq('id', id)
+    if (error) {
+      setData((prev) => prev.map((a) => a.id === id ? { ...a, score: null } : a))
+      console.error('Score save failed:', error.message)
+    }
+    setSavingScore(null)
+  }
 
   const toggleReviewed = async (id: string, current: boolean) => {
     setToggling(id)
@@ -194,15 +217,22 @@ export default function AdminAnswers() {
   const cityData = countByCity(data).slice(0, 7)
   const incomeData = countBy(data, 'income_goal').slice(0, 6)
 
-  const filtered = data.filter((a) => {
-    const matchesSearch = [a.full_name, a.phone, a.city, a.email ?? '', a.why_interested]
-      .join(' ').toLowerCase().includes(search.toLowerCase())
-    const matchesTab =
-      reviewFilter === 'all' ? true :
-      reviewFilter === 'reviewed' ? a.reviewed :
-      !a.reviewed
-    return matchesSearch && matchesTab
-  })
+  const filtered = data
+    .filter((a) => {
+      const matchesSearch = [a.full_name, a.phone, a.city, a.email ?? '', a.why_interested]
+        .join(' ').toLowerCase().includes(search.toLowerCase())
+      const matchesTab =
+        reviewFilter === 'all' ? true :
+        reviewFilter === 'reviewed' ? a.reviewed :
+        !a.reviewed
+      return matchesSearch && matchesTab
+    })
+    .sort((a, b) => {
+      if (sortBy === 'score_high') return (b.score ?? -1) - (a.score ?? -1)
+      if (sortBy === 'score_low') return (a.score ?? 101) - (b.score ?? 101)
+      if (sortBy === 'unscored') return (a.score !== null ? 1 : 0) - (b.score !== null ? 1 : 0)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
@@ -354,20 +384,32 @@ export default function AdminAnswers() {
                     <h3 className="text-sm font-semibold text-gray-900">All Applicants</h3>
                     <p className="text-xs text-gray-400 mt-0.5">{filtered.length} shown · {reviewed}/{total} interviewed</p>
                   </div>
-                  <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-                    {(['all', 'pending', 'reviewed'] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setReviewFilter(tab)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
-                          reviewFilter === tab
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        {tab === 'pending' ? 'Pending' : tab === 'reviewed' ? 'Interviewed' : 'All'}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                      className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-[#F26522]/25"
+                    >
+                      <option value="newest">Sort: Newest</option>
+                      <option value="score_high">Sort: Highest Score</option>
+                      <option value="score_low">Sort: Lowest Score</option>
+                      <option value="unscored">Sort: Unscored First</option>
+                    </select>
+                    <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                      {(['all', 'pending', 'reviewed'] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setReviewFilter(tab)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                            reviewFilter === tab
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {tab === 'pending' ? 'Pending' : tab === 'reviewed' ? 'Interviewed' : 'All'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -379,7 +421,7 @@ export default function AdminAnswers() {
                         <thead>
                           <tr className="bg-gray-50/70">
                             <th className="px-4 py-3 w-12" />
-                            {['Name', 'Phone', 'City', 'Sales Exp', 'Call Comfort', 'Hrs/Day', 'Commission', 'Income Goal', 'Date'].map((h) => (
+                            {['Name', 'Phone', 'City', 'Sales Exp', 'Call Comfort', 'Hrs/Day', 'Commission', 'Income Goal', 'Score /100', 'Date'].map((h) => (
                               <th key={h} className="px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-left whitespace-nowrap">{h}</th>
                             ))}
                           </tr>
@@ -428,6 +470,54 @@ export default function AdminAnswers() {
                               <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap">{HOURS_LABELS[a.hours_per_day]}</td>
                               <td className="px-4 py-3.5"><Badge yes={a.commission_ok} /></td>
                               <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap font-medium">{a.income_goal}</td>
+                              <td className="px-4 py-3.5">
+                                {a.score !== null && pendingScores[a.id] === undefined ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-bold ${
+                                      a.score >= 80 ? 'text-green-600' :
+                                      a.score >= 60 ? 'text-amber-600' :
+                                      a.score >= 40 ? 'text-orange-500' : 'text-red-500'
+                                    }`}>{a.score}</span>
+                                    <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          a.score >= 80 ? 'bg-green-500' :
+                                          a.score >= 60 ? 'bg-amber-400' :
+                                          a.score >= 40 ? 'bg-orange-400' : 'bg-red-400'
+                                        }`}
+                                        style={{ width: `${a.score}%` }}
+                                      />
+                                    </div>
+                                    <button
+                                      onClick={() => setPendingScores((p) => ({ ...p, [a.id]: String(a.score) }))}
+                                      className="text-gray-300 hover:text-gray-500 transition-colors"
+                                      title="Edit score"
+                                    >
+                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      placeholder="0–100"
+                                      value={pendingScores[a.id] ?? ''}
+                                      onChange={(e) => setPendingScores((p) => ({ ...p, [a.id]: e.target.value }))}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') saveScore(a.id) }}
+                                      className="w-16 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F26522]/25 focus:border-[#F26522] text-center"
+                                    />
+                                    <button
+                                      onClick={() => saveScore(a.id)}
+                                      disabled={savingScore === a.id || !pendingScores[a.id]}
+                                      className="px-2 py-1 text-xs font-semibold bg-[#F26522] hover:bg-[#D95A1A] disabled:opacity-40 text-white rounded-lg transition-colors"
+                                    >
+                                      {savingScore === a.id ? '…' : 'Save'}
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap text-xs">
                                 {new Date(a.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
                               </td>
