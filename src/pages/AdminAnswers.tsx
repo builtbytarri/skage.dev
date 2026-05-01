@@ -153,8 +153,17 @@ export default function AdminAnswers() {
 
   const toggleReviewed = async (id: string, current: boolean) => {
     setToggling(id)
+    // optimistic update
     setData((prev) => prev.map((a) => a.id === id ? { ...a, reviewed: !current } : a))
-    await supabase.from('applicants').update({ reviewed: !current }).eq('id', id)
+    const { error } = await supabase
+      .from('applicants')
+      .update({ reviewed: !current })
+      .eq('id', id)
+    if (error) {
+      // revert on failure
+      setData((prev) => prev.map((a) => a.id === id ? { ...a, reviewed: current } : a))
+      console.error('Failed to update reviewed status:', error.message)
+    }
     setToggling(null)
   }
 
@@ -382,18 +391,26 @@ export default function AdminAnswers() {
                                 <button
                                   onClick={() => toggleReviewed(a.id, a.reviewed)}
                                   disabled={toggling === a.id}
-                                  title={a.reviewed ? 'Mark as pending' : 'Mark as interviewed'}
-                                  className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all select-none ${
+                                    toggling === a.id
+                                      ? 'opacity-40 cursor-wait'
+                                      : 'cursor-pointer'
+                                  } ${
                                     a.reviewed
-                                      ? 'bg-green-500 border-green-500'
-                                      : 'border-gray-300 hover:border-[#F26522]'
-                                  } ${toggling === a.id ? 'opacity-50' : ''}`}
+                                      ? 'bg-green-50 border-green-200 text-green-700'
+                                      : 'bg-white border-gray-200 text-gray-400 hover:border-[#F26522] hover:text-[#F26522]'
+                                  }`}
                                 >
-                                  {a.reviewed && (
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                  )}
+                                  <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border ${
+                                    a.reviewed ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                                  }`}>
+                                    {a.reviewed && (
+                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                  {a.reviewed ? 'Interviewed' : 'Pending'}
                                 </button>
                               </td>
                               <td className="px-4 py-3.5">
