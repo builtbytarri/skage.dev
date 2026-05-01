@@ -21,6 +21,7 @@ interface Applicant {
   why_interested: string
   income_goal: string
   commission_ok: boolean
+  reviewed: boolean
 }
 
 const ORANGE = '#F26522'
@@ -147,6 +148,15 @@ export default function AdminAnswers() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'reviewed'>('all')
+  const [toggling, setToggling] = useState<string | null>(null)
+
+  const toggleReviewed = async (id: string, current: boolean) => {
+    setToggling(id)
+    setData((prev) => prev.map((a) => a.id === id ? { ...a, reviewed: !current } : a))
+    await supabase.from('applicants').update({ reviewed: !current }).eq('id', id)
+    setToggling(null)
+  }
 
   useEffect(() => {
     supabase
@@ -161,6 +171,7 @@ export default function AdminAnswers() {
   }, [])
 
   const total = data.length
+  const reviewed = data.filter((a) => a.reviewed).length
   const withSalesExp = data.filter((a) => a.has_sales_exp).length
   const commissionOk = data.filter((a) => a.commission_ok).length
   const stableNet = data.filter((a) => a.has_stable_internet).length
@@ -174,9 +185,15 @@ export default function AdminAnswers() {
   const cityData = countByCity(data).slice(0, 7)
   const incomeData = countBy(data, 'income_goal').slice(0, 6)
 
-  const filtered = data.filter((a) =>
-    [a.full_name, a.phone, a.city, a.email ?? ''].join(' ').toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = data.filter((a) => {
+    const matchesSearch = [a.full_name, a.phone, a.city, a.email ?? '', a.why_interested]
+      .join(' ').toLowerCase().includes(search.toLowerCase())
+    const matchesTab =
+      reviewFilter === 'all' ? true :
+      reviewFilter === 'reviewed' ? a.reviewed :
+      !a.reviewed
+    return matchesSearch && matchesTab
+  })
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
@@ -231,9 +248,9 @@ export default function AdminAnswers() {
               {/* ── Stat row ── */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Total Applicants" value={total} sub="All time" accent />
-                <StatCard label="Sales Experience" value={pct(withSalesExp, total)} sub={`${withSalesExp} applicants`} />
+                <StatCard label="Interviewed" value={`${reviewed}/${total}`} sub={`${total - reviewed} remaining`} />
                 <StatCard label="Commission Ready" value={pct(commissionOk, total)} sub={`${commissionOk} applicants`} />
-                <StatCard label="Stable Internet" value={pct(stableNet, total)} sub={`${stableNet} applicants`} />
+                <StatCard label="Sales Experience" value={pct(withSalesExp, total)} sub={`${withSalesExp} applicants`} />
               </div>
 
               {/* ── Bento row 1: 3 donuts ── */}
@@ -323,34 +340,68 @@ export default function AdminAnswers() {
 
               {/* ── Applicants table ── */}
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900">All Applicants</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">{filtered.length} of {total} shown</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{filtered.length} shown · {reviewed}/{total} interviewed</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                    {(['all', 'pending', 'reviewed'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setReviewFilter(tab)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
+                          reviewFilter === tab
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        {tab === 'pending' ? 'Pending' : tab === 'reviewed' ? 'Interviewed' : 'All'}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 {filtered.length === 0
-                  ? <Empty message={total === 0 ? 'No applications received yet. Share the form link to get started.' : 'No results match your search.'} />
+                  ? <Empty message={total === 0 ? 'No applications received yet.' : 'No results match your search or filter.'} />
                   : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm min-w-[900px]">
+                      <table className="w-full text-sm min-w-[960px]">
                         <thead>
                           <tr className="bg-gray-50/70">
-                            {['Name', 'Phone', 'City', 'Sales Exp', 'Call Comfort', 'Hrs/Day', 'Internet', 'Commission', 'Income Goal', 'Date'].map((h) => (
+                            <th className="px-4 py-3 w-12" />
+                            {['Name', 'Phone', 'City', 'Sales Exp', 'Call Comfort', 'Hrs/Day', 'Commission', 'Income Goal', 'Date'].map((h) => (
                               <th key={h} className="px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-left whitespace-nowrap">{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                           {filtered.map((a) => (
-                            <tr key={a.id} className="hover:bg-gray-50/60 transition-colors group">
+                            <tr key={a.id} className={`transition-colors group ${a.reviewed ? 'bg-green-50/30' : 'hover:bg-gray-50/60'}`}>
+                              <td className="px-4 py-3.5">
+                                <button
+                                  onClick={() => toggleReviewed(a.id, a.reviewed)}
+                                  disabled={toggling === a.id}
+                                  title={a.reviewed ? 'Mark as pending' : 'Mark as interviewed'}
+                                  className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                    a.reviewed
+                                      ? 'bg-green-500 border-green-500'
+                                      : 'border-gray-300 hover:border-[#F26522]'
+                                  } ${toggling === a.id ? 'opacity-50' : ''}`}
+                                >
+                                  {a.reviewed && (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </td>
                               <td className="px-4 py-3.5">
                                 <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded-full bg-[#F26522]/10 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-[11px] font-bold text-[#F26522] uppercase">{a.full_name.charAt(0)}</span>
+                                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${a.reviewed ? 'bg-green-100' : 'bg-[#F26522]/10'}`}>
+                                    <span className={`text-[11px] font-bold uppercase ${a.reviewed ? 'text-green-600' : 'text-[#F26522]'}`}>{a.full_name.charAt(0)}</span>
                                   </div>
-                                  <span className="font-medium text-gray-900 whitespace-nowrap">{a.full_name}</span>
+                                  <span className={`font-medium whitespace-nowrap ${a.reviewed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{a.full_name}</span>
                                 </div>
                               </td>
                               <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap">{a.phone}</td>
@@ -358,7 +409,6 @@ export default function AdminAnswers() {
                               <td className="px-4 py-3.5"><Badge yes={a.has_sales_exp} /></td>
                               <td className="px-4 py-3.5"><ComfortBadge value={a.call_comfort} /></td>
                               <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap">{HOURS_LABELS[a.hours_per_day]}</td>
-                              <td className="px-4 py-3.5"><Badge yes={a.has_stable_internet} /></td>
                               <td className="px-4 py-3.5"><Badge yes={a.commission_ok} /></td>
                               <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap font-medium">{a.income_goal}</td>
                               <td className="px-4 py-3.5 text-gray-400 whitespace-nowrap text-xs">
@@ -377,13 +427,13 @@ export default function AdminAnswers() {
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100">
                   <h3 className="text-sm font-semibold text-gray-900">Motivation Feed</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Why applicants want this role — qualitative filter</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Why applicants want this role · {filtered.length} shown</p>
                 </div>
-                {data.length === 0
-                  ? <Empty message="No responses yet." />
+                {filtered.length === 0
+                  ? <Empty message="No responses match your search." />
                   : (
                     <div className="divide-y divide-gray-50">
-                      {data.slice(0, 15).map((a) => (
+                      {filtered.map((a) => (
                         <div key={a.id} className="px-6 py-4 flex items-start gap-4 hover:bg-gray-50/50 transition-colors">
                           <div className="w-9 h-9 rounded-full bg-[#F26522]/10 flex items-center justify-center flex-shrink-0">
                             <span className="text-sm font-bold text-[#F26522] uppercase">{a.full_name.charAt(0)}</span>
