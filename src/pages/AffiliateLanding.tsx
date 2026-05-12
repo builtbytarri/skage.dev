@@ -75,7 +75,7 @@ export default function AffiliateLanding() {
           <div className="grid md:grid-cols-2 gap-4">
             {[
               'Reaching out to small and medium businesses via calls, DMs, or referrals',
-              'Introducing them to Skage's web and digital services',
+              "Introducing them to Skage's web and digital services",
               'Booking interested leads for a follow-up meeting with the Skage team',
               'Following up on warm leads when needed',
             ].map((item, i) => (
