@@ -1,4 +1,4 @@
-const WA = 'https://chat.whatsapp.com/JnwcgFWSIbuGudIhD49j1R?mode=gi_t'
+const WA = 'https://chat.whatsapp.com/BSjHa8ft08I9Ym5eGeroeH?mode=gi_t'
 
 function OrangeLine() {
   return <div className="w-8 h-0.5 bg-[#F26522] mb-6" />
